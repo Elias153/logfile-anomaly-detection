@@ -3,14 +3,6 @@
 
 # In[ ]:
 
-
-from google.colab import drive
-drive.mount('/content/drive')
-
-
-# In[ ]:
-
-
 import matplotlib.pyplot as plt
 import numpy as np
 import time
@@ -39,6 +31,8 @@ from sklearn.neighbors import KernelDensity
 from sklearn.model_selection import GridSearchCV
 from scipy.stats import pearsonr
 
+from LSTM_OCSVM_SHAP import lstm_autoencoder
+
 np.random.seed(1234)  
 PYTHONHASHSEED = 0
 
@@ -46,7 +40,6 @@ from sklearn import preprocessing
 from sklearn.metrics import confusion_matrix, recall_score, precision_score
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, Activation
-get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 # # Import Data
@@ -94,8 +87,43 @@ print(X_valid.shape)
 
 # In[ ]:
 
+import tensorflow as tf
 
-get_ipython().run_cell_magic('time', '', 'results = {}\nfor num_cells in [64]:\n    for lr in [1e-3]:\n            print(\'Running with\', num_cells, \n                  \'LSTM cells\'\n                  \'and learning rate =\', lr, \'...\')\n\n            # build network\n            lstm_autoencoder = Sequential()\n            # Encoder\n            lstm_autoencoder.add(LSTM(100, activation=\'relu\', input_shape=(timesteps, n_features), return_sequences=True))\n            lstm_autoencoder.add(LSTM(25, activation=\'relu\', return_sequences=False))\n            lstm_autoencoder.add(RepeatVector(timesteps))\n            # Decoder\n            lstm_autoencoder.add(LSTM(25, activation=\'relu\', return_sequences=True))\n            lstm_autoencoder.add(LSTM(100, activation=\'relu\', return_sequences=True)) \n            lstm_autoencoder.add(TimeDistributed(Dense(n_features)))\n            # lstm_autoencoder.add(tf.keras.layers.Flatten())\n            lstm_autoencoder.summary()\n            adam = tf.optimizers.Adam(lr)\n            lstm_autoencoder.compile(loss=\'mse\', optimizer=adam)\n            cp = ModelCheckpoint(filepath="lstm_autoencoder_classifier.h5",\n                               save_best_only=True,\n                               verbose=0)\n            tb = TensorBoard(log_dir=\'./logs\',\n                histogram_freq=0,\n                write_graph=True,\n                write_images=True)\n            lstm_autoencoder_history = lstm_autoencoder.fit(X_train, X_train, \n                                                epochs=epochs, \n                                                batch_size=batch_size, \n                                                validation_data=(X_valid, X_valid),\n                                                verbose=2, callbacks = [keras.callbacks.EarlyStopping(monitor=\'val_loss\', min_delta=0, patience=10, verbose=0, mode=\'auto\')]).history\n            print("Predicting...")\n            predicted_train = lstm_autoencoder.predict(X_train)\n            predicted = lstm_autoencoder.predict(X_test)         \n')
+for num_cells in [64]:
+  for lr in [1e-3]:
+    print('Running with', num_cells,
+          'LSTM cells'
+          'and learning rate =', lr, '...')
+
+    # build network
+    lstm_autoencoder = Sequential()
+    # Encoder
+    lstm_autoencoder.add(LSTM(100, activation='relu', input_shape=(timesteps, n_features), return_sequences=True))
+    lstm_autoencoder.add(LSTM(25, activation='relu', return_sequences=False))
+    lstm_autoencoder.add(RepeatVector(timesteps))
+    # Decoder
+    lstm_autoencoder.add(LSTM(25, activation='relu', return_sequences=True))
+    lstm_autoencoder.add(LSTM(100, activation='relu', return_sequences=True))
+    lstm_autoencoder.add(TimeDistributed(Dense(n_features)))
+    # lstm_autoencoder.add(tf.keras.layers.Flatten())
+    lstm_autoencoder.summary()
+    adam = tf.optimizers.Adam(lr)
+    lstm_autoencoder.compile(loss='mse', optimizer=adam)
+    cp = ModelCheckpoint(filepath="lstm_autoencoder_classifier.h5",
+                         save_best_only=True,
+                         verbose=0)
+    tb = TensorBoard(log_dir='./logs',
+                     histogram_freq=0,
+                     write_graph=True,
+                     write_images=True)
+    lstm_autoencoder_history = lstm_autoencoder.fit(X_train, X_train,
+                                                    epochs=epochs,
+                                                    batch_size=batch_size,
+                                                    validation_data=(X_valid, X_valid),
+                                                    verbose=2, callbacks = [keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=0, mode='auto')]).history
+    print("Predicting...")
+    predicted_train = lstm_autoencoder.predict(X_train)
+    predicted = lstm_autoencoder.predict(X_test)
 
 
 # #Anomaly Detection using OCSVM
@@ -208,13 +236,6 @@ lstm_autoencoder1.layers[4].set_weights(lstm_autoencoder.layers[4].get_weights()
 lstm_autoencoder1.layers[5].set_weights(lstm_autoencoder.layers[5].get_weights())
 predicted_train1 = lstm_autoencoder1.predict(X_train)
 # print(predicted_train1)
-
-
-# In[ ]:
-
-
-get_ipython().system('pip  install shap')
-
 
 # In[ ]:
 
